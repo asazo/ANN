@@ -16,7 +16,8 @@ def unpickle(file):
     return dict
 
 
-def process_set(PATH, i):
+def load_single_NORB_train_val(PATH, i):
+    print "Cargando batch training set",i,"..."
     f = os.path.join(PATH, 'data_batch_%d' % (i, ))
     datadict = unpickle(f)
     X = datadict['data'].T
@@ -25,16 +26,15 @@ def process_set(PATH, i):
     Z[:,:-1] = X
     Z[:, -1] = Y
     np.random.shuffle(Z)
-    xtr.append(Z[5832:,0:-1])
-    ytr.append(Z[5832:,-1])
-    xval.append(Z[:5832,0:-1])
-    yval.append(Z[:5832,-1])
-    Xtr = np.concatenate(xtr)
-    Ytr = np.concatenate(ytr)
-    Xval = np.concatenate(xval)
-    Yval = np.concatenate(yval)
+    Xtr = Z[5832:,0:-1]
+    Ytr = Z[5832:,-1]
+    Xval = Z[:5832,0:-1]
+    Yval = Z[:5832,-1]
+    print "Cargado"
+    return Xtr, Ytr, Xval, Yval
 
-def load_NORB_train_val(PATH, datarange=range(1, 11)):
+
+"""def load_NORB_train_val(PATH, datarange=range(1, 11)):
     print "Loading training set..."
     xtr = []
     ytr = []
@@ -60,11 +60,11 @@ def load_NORB_train_val(PATH, datarange=range(1, 11)):
 
     del xtr,ytr,xval,yval
     print "Loaded."
-    return Xtr, Ytr, Xval, Yval
+    return Xtr, Ytr, Xval, Yval"""
 
 
 def load_NORB_test(PATH):
-    print "Loading testing set..."
+    print "Cargando testing set..."
     xts = []
     yts = []
     for b in range(11, 13):
@@ -82,16 +82,20 @@ def load_NORB_test(PATH):
     Yts = np.concatenate(yts)
 
     del xts,yts
-    print "Loaded."
+    print "Cargado."
     return Xts, Yts
 
 
-def scale_data(X, range=None):
+def scale_data(X, normalize=True, myrange=None):
     from sklearn.preprocessing import MinMaxScaler, StandardScaler
-    if not range:
+    if normalize and not myrange:
+        print "Normalizando data (mean 0, std 1)"
         return StandardScaler().fit_transform(X)
+    elif isinstance(myrange, tuple):
+        print "Escalando data al rango", myrange
+        return X * (myrange[1] - myrange[0]) + myrange[0]
     else:
-        return MinMaxScaler(feature_range=(-1, 1)).fit_transform(X)
+        return "Error mientras escalaba."
 
 
 # Modelo MLP FF
@@ -117,30 +121,37 @@ def split_train(X, Y, theta):
     X_ns = X[n_s: ]
     return X_s, Y_s, X_ns
 
-
-# Cargar datos
-Xtr, Ytr, Xval, Yval = load_NORB_train_val(".", range(1,4))
-Xts, Yts = load_NORB_test(".")
-n_tr = Xtr.shape[0]
-
-# Escalar datos y categorizar
+# Definir numero de clases
 n_classes = 6
-print "Scaling data..."
-Xtr_scaled = scale_data(Xtr)
-Xval_scaled = scale_data(Xval)
+# Cargar datos de prueba.
+print "Cargando"
+Xts, Yts = load_NORB_test(".")
 Xts_scaled = scale_data(Xts)
-print "data scaled."
-Ytr_class = np_utils.to_categorical(Ytr.astype(int), n_classes)
-Yval_class = np_utils.to_categorical(Yval.astype(int), n_classes)
 Yts_class = np_utils.to_categorical(Yts.astype(int), n_classes)
-
 
 # Experimento: error de pruebas en funcion de theta (proporcion data no supervisada)
 accuracies = []
 for theta in np.linspace(0.1, 1, 10):
-    Xtr_s, Ytr_s, Xtr_ns = split_train(Xtr_scaled, Ytr_class, theta)
-    model = get_ff_model('relu', 6)
-    model.fit(Xtr_s, Ytr_s, batch_size=10)
+    model = get_ff_model('relu', n_classes)
+    print "Metricas:",model.metrics_names
+    # Entrenamiento batch a batch
+    for i in range(1, 11):
+        print "Entrenando batch",i,"de 10"
+        Xtr, Ytr, Xval, Yval = load_single_NORB_train_val(".", i)
+        n_tr = Xtr.shape[0]
+        # Escalar datos y categorizar
+        print "Escalando data..."
+        Xtr_scaled = scale_data(Xtr)
+        Xval_scaled = scale_data(Xval)
+        print "Data escalada."
+        print "Pasando a data categorica para labels..."
+        Ytr_class = np_utils.to_categorical(Ytr.astype(int), n_classes)
+        Yval_class = np_utils.to_categorical(Yval.astype(int), n_classes)
+        print "Data categorizada."
+        Xtr_s, Ytr_s, Xtr_ns = split_train(Xtr_scaled, Ytr_class, theta)
+        model.fit(Xtr_s, Ytr_s, batch_size=10, validation_data=(Xval_scaled, Yval_class))
+        print "Batch entrenado."
+    print "Evaluando modelo para theta =",theta
     a = model.evaluate(Xts_scaled, Yts_class, batch_size=10, verbose=1)
     print a
     accuracies.append(a)
