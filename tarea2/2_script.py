@@ -122,6 +122,9 @@ print accuracies"""
 
 from sklearn.neural_network import BernoulliRBM
 from sklearn.externals import joblib
+from keras.layers import Input, Dense
+from keras.models import Model
+from keras.optimizers import SGD
 
 # Pre entrenar con RBM
 """RBM1 = BernoulliRBM(n_components=4000, batch_size=2916,
@@ -217,38 +220,37 @@ for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
     joblib.dump(RBM2, "2/RBM2_"+str(theta)+".pkl")
 """
 
-activation = 'relu'
+activation1 = 'relu'
+activation2 = 'sigmoid'
 input_img1 = Input(shape=(2048,))
-encoded1 = Dense(4000, activation=activation)(input_img1)
-decoded1 = Dense(784, activation='sigmoid')(encoded1)
+encoded1 = Dense(4000, activation=activation1)(input_img1)
+decoded1 = Dense(2048, activation=activation2)(encoded1)
 autoencoder1 = Model(input=input_img1, output=decoded1)
 encoder1 = Model(input=input_img1, output=encoded1)
-autoencoder1.compile(optimizer=SGD(lr=1.0), loss='binary_crossentropy')
+autoencoder1.compile(optimizer=SGD(lr=0.01), loss='binary_crossentropy')
 
-for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
+input_img2 = Input(shape=(4000,))
+encoded2 = Dense(2000, activation=activation2)(input_img2)
+decoded2 = Dense(4000, activation=activation2)(encoded2)
+autoencoder2 = Model(input=input_img2, output=decoded2)
+encoder2 = Model(input=input_img2, output=encoded2)
+autoencoder2.compile(optimizer=SGD(lr=0.01), loss='binary_crossentropy')
+
+
+for i, rev_theta in enumerate(np.linspace(0.1, 0.9, 9)):
+    theta = 1 - rev_theta
     print "Preentrenando modelo para theta=",theta
     print "Leyendo batch",i+1
-    Xtr_ns = load_single_NORB_train_val(".", i+1, onlyx=True)
+    Xtr_ns, Ytr_ns, Xval_ns, Yval_ns = load_single_NORB_train_val(".", i+1)
     Xtr_ns = scale_data(Xtr_ns)
-    theta = 1 - rev_theta
-    autoencoder1.fit(Xtr_ns, Xtr_ns, nb_epoch=25, batch_size=25,
-    shuffle=True, validation_data=(x_val, x_val))
-    encoded_input1 = Input(shape=(4000,))
-    autoencoder1.save('AE1_'+str(theta)+'.h5')
-    encoder1.save('E1'+str(theta)+'.h5')
+    Xval_ns = scale_data(Xval_ns)
 
-    Xtr_ns_2 = encoder1.predict(Xtr_ns)
-    x_val_encoded1 = encoder1.predict(x_val)
-    x_test_encoded1 = encoder1.predict(x_test)
+    autoencoder1.fit(Xtr_ns, Xtr_ns, nb_epoch=10, batch_size=25,shuffle=True, validation_data=(Xval_ns, Xval_ns))
+    autoencoder1.save('2/AE1_'+str(theta)+'.h5')
+    encoder1.save('2/E1_'+str(theta)+'.h5')
 
-    input_img2 = Input(shape=(n_hidden_layer1,))
-    encoded2 = Dense(n_hidden_layer2, activation=activation_layer2)(input_img2)
-    decoded2 = Dense(n_hidden_layer2, activation=decoder_activation_2)(encoded2)
-    autoencoder2 = Model(input=input_img2, output=decoded2)
-    encoder2 = Model(input=input_img2, output=encoded2)
-    autoencoder2.compile(optimizer=optimizer_, loss=loss_)
-    autoencoder2.fit(x_train_encoded1,x_train_encoded1,nb_epoch=epochs_,batch_size=batch_size_,
-    shuffle=True, validation_data=(x_val_encoded1, x_val_encoded1))
-    encoded_input2 = Input(shape=(n_hidden_layer2,))
-    autoencoder2.save('autoencoder_layer2.h5')
-    encoder2.save('encoder_layer2.h5')
+    Xtr_ns_1 = encoder1.predict(Xtr_ns)
+    Xval_ns_1 = encoder1.predict(Xval_ns)
+    autoencoder2.fit(Xtr_ns_1,Xtr_ns_1,nb_epoch=10,batch_size=25, shuffle=True, validation_data=(Xval_ns_1, Xval_ns_1))
+    autoencoder2.save('2/AE2_'+str(theta)+'.h5')
+    encoder2.save('2/E2_'+str(theta)+'.h5')
