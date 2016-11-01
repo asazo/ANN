@@ -123,7 +123,7 @@ print accuracies"""
 from sklearn.neural_network import BernoulliRBM
 from sklearn.externals import joblib
 
-    # Pre entrenar con RBM
+# Pre entrenar con RBM
 """RBM1 = BernoulliRBM(n_components=4000, batch_size=2916,
                             learning_rate=0.01, verbose=1, n_iter=30)
 RBM2 = BernoulliRBM(n_components=2000, batch_size=2916,
@@ -142,19 +142,19 @@ for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
     RBM2.partial_fit(Xtr_ns2)
     del Xtr_ns, Xtr_ns2
     print "..."
-    joblib.dump(RBM1, "pregunta2_modelos/RBM1_"+str(theta)+".pkl")
-    joblib.dump(RBM2, "pregunta2_modelos/RBM2_"+str(theta)+".pkl")
+    joblib.dump(RBM1, "2/RBM1_"+str(theta)+".pkl")
+    joblib.dump(RBM2, "2/RBM2_"+str(theta)+".pkl")
 """
 
-
-accuracies = []
+# Entrenar usando RBM
+"""accuracies = []
 activation = 'relu'
 
 for i, theta in enumerate(np.linspace(0.1, 1, 10)):
     print "Analizando theta =",theta
     if i == 10:
-        RBM1 = joblib.load('pregunta2_modelos/RBM1_'+str(theta)+".pkl")
-        RBM2 = joblib.load('pregunta2_modelos/RBM2_'+str(theta)+".pkl")
+        RBM1 = joblib.load('2/RBM1_'+str(theta)+".pkl")
+        RBM2 = joblib.load('2/RBM2_'+str(theta)+".pkl")
 
     model = Sequential()
     model.add(Dense(4000, input_dim=2048, activation=activation))
@@ -192,5 +192,63 @@ for i, theta in enumerate(np.linspace(0.1, 1, 10)):
     accuracies.append(a)
     del Xtr, Ytr, Xval, Yval
 print accuracies
+"""
 
+# Preentrenamiento con AE
+"""RBM1 = BernoulliRBM(n_components=4000, batch_size=2916,
+                            learning_rate=0.01, verbose=1, n_iter=30)
+RBM2 = BernoulliRBM(n_components=2000, batch_size=2916,
+                            learning_rate=0.01, verbose=1, n_iter=30)
 
+for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
+    theta = 1 - rev_theta
+    print "Preentrenando modelo para theta=",theta
+    print "Leyendo batch",i+1
+    Xtr_ns = load_single_NORB_train_val(".", i+1, onlyx=True)
+    Xtr_ns = scale_data(Xtr_ns)
+    RBM1.partial_fit(Xtr_ns)
+    Xtr_ns2 = RBM1.transform(Xtr_ns)
+    print "..."
+    Xtr_ns2 = scale_data(Xtr_ns2)
+    RBM2.partial_fit(Xtr_ns2)
+    del Xtr_ns, Xtr_ns2
+    print "..."
+    joblib.dump(RBM1, "2/RBM1_"+str(theta)+".pkl")
+    joblib.dump(RBM2, "2/RBM2_"+str(theta)+".pkl")
+"""
+
+activation = 'relu'
+input_img1 = Input(shape=(2048,))
+encoded1 = Dense(4000, activation=activation)(input_img1)
+decoded1 = Dense(784, activation='sigmoid')(encoded1)
+autoencoder1 = Model(input=input_img1, output=decoded1)
+encoder1 = Model(input=input_img1, output=encoded1)
+autoencoder1.compile(optimizer=SGD(lr=1.0), loss='binary_crossentropy')
+
+for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
+    print "Preentrenando modelo para theta=",theta
+    print "Leyendo batch",i+1
+    Xtr_ns = load_single_NORB_train_val(".", i+1, onlyx=True)
+    Xtr_ns = scale_data(Xtr_ns)
+    theta = 1 - rev_theta
+    autoencoder1.fit(Xtr_ns, Xtr_ns, nb_epoch=25, batch_size=25,
+    shuffle=True, validation_data=(x_val, x_val))
+    encoded_input1 = Input(shape=(4000,))
+    autoencoder1.save('AE1_'+str(theta)+'.h5')
+    encoder1.save('E1'+str(theta)+'.h5')
+
+    Xtr_ns_2 = encoder1.predict(Xtr_ns)
+    x_val_encoded1 = encoder1.predict(x_val)
+    x_test_encoded1 = encoder1.predict(x_test)
+
+    input_img2 = Input(shape=(n_hidden_layer1,))
+    encoded2 = Dense(n_hidden_layer2, activation=activation_layer2)(input_img2)
+    decoded2 = Dense(n_hidden_layer2, activation=decoder_activation_2)(encoded2)
+    autoencoder2 = Model(input=input_img2, output=decoded2)
+    encoder2 = Model(input=input_img2, output=encoded2)
+    autoencoder2.compile(optimizer=optimizer_, loss=loss_)
+    autoencoder2.fit(x_train_encoded1,x_train_encoded1,nb_epoch=epochs_,batch_size=batch_size_,
+    shuffle=True, validation_data=(x_val_encoded1, x_val_encoded1))
+    encoded_input2 = Input(shape=(n_hidden_layer2,))
+    autoencoder2.save('autoencoder_layer2.h5')
+    encoder2.save('encoder_layer2.h5')
