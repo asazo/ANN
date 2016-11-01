@@ -150,17 +150,19 @@ for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
 accuracies = []
 activation = 'relu'
 
-#for i, theta in enumerate(np.linspace(0.1, 1, 10)):
-for i, theta in enumerate([1.0]):
+for i, theta in enumerate(np.linspace(0.1, 1, 10)):
     print "Analizando theta =",theta
-    """RBM1 = joblib.load('pregunta2_modelos/RBM1_'+str(theta)+".pkl")
-    RBM2 = joblib.load('pregunta2_modelos/RBM2_'+str(theta)+".pkl")"""
+    if i == 10:
+        RBM1 = joblib.load('pregunta2_modelos/RBM1_'+str(theta)+".pkl")
+        RBM2 = joblib.load('pregunta2_modelos/RBM2_'+str(theta)+".pkl")
 
     model = Sequential()
     model.add(Dense(4000, input_dim=2048, activation=activation))
-    #model.layers[-1].set_weights([RBM1.components_.T, RBM1.intercept_hidden_])
+    if i == 10:
+        model.layers[-1].set_weights([RBM1.components_.T, RBM1.intercept_hidden_])
     model.add(Dense(2000, activation=activation))
-    #model.layers[-1].set_weights([RBM2.components_.T, RBM2.intercept_hidden_])
+    if i == 10:
+        model.layers[-1].set_weights([RBM2.components_.T, RBM2.intercept_hidden_])
     model.add(Dense(n_classes, activation='softmax'))
     sgd = SGD(lr=0.1, decay=0.0)
     model.compile(optimizer=sgd,
@@ -190,3 +192,5 @@ for i, theta in enumerate([1.0]):
     accuracies.append(a)
     del Xtr, Ytr, Xval, Yval
 print accuracies
+
+
