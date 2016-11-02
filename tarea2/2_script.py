@@ -198,29 +198,9 @@ print accuracies
 """
 
 # Preentrenamiento con AE
-"""RBM1 = BernoulliRBM(n_components=4000, batch_size=2916,
-                            learning_rate=0.01, verbose=1, n_iter=30)
-RBM2 = BernoulliRBM(n_components=2000, batch_size=2916,
-                            learning_rate=0.01, verbose=1, n_iter=30)
 
-for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
-    theta = 1 - rev_theta
-    print "Preentrenando modelo para theta=",theta
-    print "Leyendo batch",i+1
-    Xtr_ns = load_single_NORB_train_val(".", i+1, onlyx=True)
-    Xtr_ns = scale_data(Xtr_ns)
-    RBM1.partial_fit(Xtr_ns)
-    Xtr_ns2 = RBM1.transform(Xtr_ns)
-    print "..."
-    Xtr_ns2 = scale_data(Xtr_ns2)
-    RBM2.partial_fit(Xtr_ns2)
-    del Xtr_ns, Xtr_ns2
-    print "..."
-    joblib.dump(RBM1, "2/RBM1_"+str(theta)+".pkl")
-    joblib.dump(RBM2, "2/RBM2_"+str(theta)+".pkl")
-"""
 
-activation1 = 'relu'
+"""activation1 = 'relu'
 activation2 = 'sigmoid'
 input_img1 = Input(shape=(2048,))
 encoded1 = Dense(4000, activation=activation1)(input_img1)
@@ -253,4 +233,52 @@ for i, rev_theta in enumerate(np.linspace(0.1, 0.9, 9)):
     Xval_ns_1 = encoder1.predict(Xval_ns)
     autoencoder2.fit(Xtr_ns_1,Xtr_ns_1,nb_epoch=10,batch_size=25, shuffle=True, validation_data=(Xval_ns_1, Xval_ns_1))
     autoencoder2.save('2/AE2_'+str(theta)+'.h5')
-    encoder2.save('2/E2_'+str(theta)+'.h5')
+    encoder2.save('2/E2_'+str(theta)+'.h5')"""
+
+accuracies = []
+activation = 'relu'
+from keras.models import load_model
+
+
+for i, theta in enumerate(np.linspace(0.1, 1, 10)):
+    print "Analizando theta =",theta
+    if i != 10:
+        AE1 = load_model('2/AE1_'+str(theta)+".h5")
+        AE2 = load_model('2/AE2_'+str(theta)+".h5")
+
+    model = Sequential()
+    model.add(Dense(4000, input_dim=2048, activation=activation))
+    if i != 10:
+        model.layers[-1].set_weights(AE1.layers[1].get_weights())
+    model.add(Dense(2000, activation=activation))
+    if i != 10:
+        model.layers[-1].set_weights(AE2.layers[1].get_weights())
+    model.add(Dense(n_classes, activation='softmax'))
+    sgd = SGD(lr=0.1, decay=0.0)
+    model.compile(optimizer=sgd,
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
+
+    print "Entrenando..."
+    for n in range(1):
+        for k in range(1, i+2):
+            print "Leyendo batch",k
+            Xtr, Ytr, Xval, Yval = load_single_NORB_train_val(".", k)
+            # Escalar datos y categorizar
+            print "Escalando data..."
+            Xtr_scaled = scale_data(Xtr)
+            Xval_scaled = scale_data(Xval)
+            print "Data escalada."
+            print "Pasando a data categorica para labels..."
+            Ytr_class = np_utils.to_categorical(Ytr.astype(int), n_classes)
+            Yval_class = np_utils.to_categorical(Yval.astype(int), n_classes)
+            print "Data categorizada."
+            model.fit(Xtr_scaled, Ytr_class, batch_size=10,
+                      validation_data=(Xval_scaled, Yval_class), nb_epoch=5)
+            print "Batch entrenado."
+
+    a = model.evaluate(Xts_scaled, Yts_class, batch_size=10, verbose=1)
+    print "Resultado:",a
+    accuracies.append(a)
+    del Xtr, Ytr, Xval, Yval
+print accuracies
