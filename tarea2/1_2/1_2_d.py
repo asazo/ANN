@@ -51,6 +51,12 @@ for devst in devsts:
     decoder = Model(input=encoded_input, output=decoder_layer(encoded_input))
     autoencoder.compile(optimizer=SGD(lr=1.0), loss='binary_crossentropy')
     autoencoder.fit(noisy_x_train,x_train,nb_epoch=50,batch_size=25,shuffle=True, validation_data=(noisy_x_val, x_val))
+    model_json = autoencoder.to_json()
+    with open("model_2_"+str(i)+".json", "w") as json_file:
+        json_file.write(model_json)
+    # serialize weights to HDF5
+    model.save_weights("model_2_"+str(i)+".h5")
+
     autoencoder.save("autoencoder_2_"+str(i)+".h5")
     encoder.save("encoder_2_"+str(i)+".h5")
     decoder.save("decoder_2_"+str(i)+".h5")

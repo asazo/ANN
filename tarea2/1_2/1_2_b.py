@@ -42,7 +42,7 @@ for noise_level in noise_levels:
     noisy_x_test = x_test*noise_mask
 
     input_img = Input(shape=(784,))
-    encoded = Dense(32, activation='sigmoid')(input_img)
+    encoded = Dense(32, activation='sigmoid', input_dim=input_img.shape)(input_img)
     decoded = Dense(784, activation='sigmoid')(encoded)
     autoencoder = Model(input=input_img, output=decoded)
     encoder = Model(input=input_img, output=encoded)
@@ -51,11 +51,11 @@ for noise_level in noise_levels:
     decoder = Model(input=encoded_input, output=decoder_layer(encoded_input))
     autoencoder.compile(optimizer=SGD(lr=1.0), loss='binary_crossentropy')
     autoencoder.fit(noisy_x_train,x_train,nb_epoch=50,batch_size=25,shuffle=True, validation_data=(noisy_x_val, x_val))
-    model_json = autoencoder.to_json()
+    #model_json = autoencoder.to_json()
     autoencoder.save("autoencoder"+str(i)+".h5")
     encoder.save("encoder"+str(i)+".h5")
     decoder.save("decoder"+str(i)+".h5")
-    with open("model"+str(i)+".json", "w") as json_file:
-        json_file.write(model_json)
+    #with open("model"+str(i)+".json", "w") as json_file:
+    #    json_file.write(model_json)
     # serialize weights to HDF5
-    autoencoder.save_weights("model"+str(i)+".h5")
+    #autoencoder.save_weights("model"+str(i)+".h5")
