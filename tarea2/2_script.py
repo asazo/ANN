@@ -94,7 +94,7 @@ Yts_class = np_utils.to_categorical(Yts.astype(int), n_classes)
 # Experimento: error de pruebas en funcion de theta (proporcion data no supervisada)
 # Entrenar por porcentajes conocidos implica iterativamente avanzar batch sobre batch...
 
-"""accuracies = []
+accuracies = []
 model = get_ff_model('relu', n_classes)
 print "Metricas:",model.metrics_names
 
@@ -117,7 +117,7 @@ for i, theta in enumerate(np.linspace(0.1, 1, 10)):
     a = model.evaluate(Xts_scaled, Yts_class, batch_size=10, verbose=1)
     print "Resultado:",a
     accuracies.append(a)
-print accuracies"""
+print accuracies
 
 
 from sklearn.neural_network import BernoulliRBM
@@ -127,9 +127,9 @@ from keras.models import Model
 from keras.optimizers import SGD
 
 # Pre entrenar con RBM
-"""RBM1 = BernoulliRBM(n_components=4000, batch_size=2916,
+RBM1 = BernoulliRBM(n_components=512, batch_size=10,
                             learning_rate=0.01, verbose=1, n_iter=30)
-RBM2 = BernoulliRBM(n_components=2000, batch_size=2916,
+RBM2 = BernoulliRBM(n_components=100, batch_size=10,
                             learning_rate=0.01, verbose=1, n_iter=30)
 
 for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
@@ -145,26 +145,29 @@ for i, rev_theta in enumerate(np.linspace(0.1, 1, 10)):
     RBM2.partial_fit(Xtr_ns2)
     del Xtr_ns, Xtr_ns2
     print "..."
-    joblib.dump(RBM1, "2/RBM1_"+str(theta)+".pkl")
-    joblib.dump(RBM2, "2/RBM2_"+str(theta)+".pkl")
-"""
+    joblib.dump(RBM1, "2/RBM1_512_"+str(theta)+".pkl")
+    joblib.dump(RBM2, "2/RBM2_512_"+str(theta)+".pkl")
+
 
 # Entrenar usando RBM
-"""accuracies = []
-activation = 'relu'
+accuracies = []
+activation = 'tanh'
 
 for i, theta in enumerate(np.linspace(0.1, 1, 10)):
     print "Analizando theta =",theta
-    if i == 10:
-        RBM1 = joblib.load('2/RBM1_'+str(theta)+".pkl")
-        RBM2 = joblib.load('2/RBM2_'+str(theta)+".pkl")
+    if i != 9:
+        print "Cargando rbms"
+        RBM1 = joblib.load('2/RBM1_512_'+str(theta)+".pkl")
+        RBM2 = joblib.load('2/RBM2_512_'+str(theta)+".pkl")
 
     model = Sequential()
-    model.add(Dense(4000, input_dim=2048, activation=activation))
-    if i == 10:
+    model.add(Dense(512, input_dim=2048, activation=activation))
+    if i != 9:
+        print "seteando pesos 1"
         model.layers[-1].set_weights([RBM1.components_.T, RBM1.intercept_hidden_])
-    model.add(Dense(2000, activation=activation))
-    if i == 10:
+    model.add(Dense(100, activation=activation))
+    if i != 9:
+        print "seteando pesos 2"
         model.layers[-1].set_weights([RBM2.components_.T, RBM2.intercept_hidden_])
     model.add(Dense(n_classes, activation='softmax'))
     sgd = SGD(lr=0.1, decay=0.0)
@@ -173,10 +176,10 @@ for i, theta in enumerate(np.linspace(0.1, 1, 10)):
               metrics=['accuracy'])
 
     print "Entrenando..."
-    for n in range(1):
-        for k in range(1, 11):
+    for n in range(2):
+        for k in range(0, i+1):
             print "Leyendo batch",k
-            Xtr, Ytr, Xval, Yval = load_single_NORB_train_val(".", k)
+            Xtr, Ytr, Xval, Yval = load_single_NORB_train_val(".", k+1)
             # Escalar datos y categorizar
             print "Escalando data..."
             Xtr_scaled = scale_data(Xtr)
@@ -193,28 +196,33 @@ for i, theta in enumerate(np.linspace(0.1, 1, 10)):
     a = model.evaluate(Xts_scaled, Yts_class, batch_size=10, verbose=1)
     print "Resultado:",a
     accuracies.append(a)
+    print accuracies
     del Xtr, Ytr, Xval, Yval
 print accuracies
-"""
 
 # Preentrenamiento con AE
 
 
-"""activation1 = 'relu'
+hidden_layer = 512
+hidden_layer2 = 100
+
+activation1 = 'relu'
 activation2 = 'sigmoid'
+
+
 input_img1 = Input(shape=(2048,))
-encoded1 = Dense(4000, activation=activation1)(input_img1)
+encoded1 = Dense(hidden_layer, activation=activation1)(input_img1)
 decoded1 = Dense(2048, activation=activation2)(encoded1)
 autoencoder1 = Model(input=input_img1, output=decoded1)
 encoder1 = Model(input=input_img1, output=encoded1)
-autoencoder1.compile(optimizer=SGD(lr=0.01), loss='binary_crossentropy')
+autoencoder1.compile(optimizer=SGD(lr=0.001), loss='binary_crossentropy')
 
-input_img2 = Input(shape=(4000,))
-encoded2 = Dense(2000, activation=activation2)(input_img2)
-decoded2 = Dense(4000, activation=activation2)(encoded2)
+input_img2 = Input(shape=(hidden_layer,))
+encoded2 = Dense(hidden_layer2, activation=activation2)(input_img2)
+decoded2 = Dense(hidden_layer, activation=activation2)(encoded2)
 autoencoder2 = Model(input=input_img2, output=decoded2)
 encoder2 = Model(input=input_img2, output=encoded2)
-autoencoder2.compile(optimizer=SGD(lr=0.01), loss='binary_crossentropy')
+autoencoder2.compile(optimizer=SGD(lr=0.001), loss='binary_crossentropy')
 
 
 for i, rev_theta in enumerate(np.linspace(0.1, 0.9, 9)):
@@ -225,33 +233,36 @@ for i, rev_theta in enumerate(np.linspace(0.1, 0.9, 9)):
     Xtr_ns = scale_data(Xtr_ns)
     Xval_ns = scale_data(Xval_ns)
 
-    autoencoder1.fit(Xtr_ns, Xtr_ns, nb_epoch=10, batch_size=25,shuffle=True, validation_data=(Xval_ns, Xval_ns))
+    autoencoder1.fit(Xtr_ns, Xtr_ns, nb_epoch=10, batch_size=250,shuffle=True, validation_data=(Xval_ns, Xval_ns))
     autoencoder1.save('2/AE1_'+str(theta)+'.h5')
     encoder1.save('2/E1_'+str(theta)+'.h5')
 
     Xtr_ns_1 = encoder1.predict(Xtr_ns)
     Xval_ns_1 = encoder1.predict(Xval_ns)
-    autoencoder2.fit(Xtr_ns_1,Xtr_ns_1,nb_epoch=10,batch_size=25, shuffle=True, validation_data=(Xval_ns_1, Xval_ns_1))
+    autoencoder2.fit(Xtr_ns_1,Xtr_ns_1,nb_epoch=10,batch_size=250, shuffle=True, validation_data=(Xval_ns_1, Xval_ns_1))
     autoencoder2.save('2/AE2_'+str(theta)+'.h5')
-    encoder2.save('2/E2_'+str(theta)+'.h5')"""
+    encoder2.save('2/E2_'+str(theta)+'.h5')
+
 
 accuracies = []
-activation = 'relu'
+activation = 'tanh'
 from keras.models import load_model
 
 
 for i, theta in enumerate(np.linspace(0.1, 1, 10)):
     print "Analizando theta =",theta
-    if i != 10:
-        AE1 = load_model('2/AE1_'+str(theta)+".h5")
-        AE2 = load_model('2/AE2_'+str(theta)+".h5")
+    if i != 9:
+        AE1 = load_model('2/AEpretraining512/AE1_'+str(theta)+".h5")
+        AE2 = load_model('2/AEpretraining512/AE2_'+str(theta)+".h5")
 
     model = Sequential()
-    model.add(Dense(4000, input_dim=2048, activation=activation))
-    if i != 10:
+    model.add(Dense(hidden_layer, input_dim=2048, activation=activation))
+    if i != 9:
+        print "setear pesos 1"
         model.layers[-1].set_weights(AE1.layers[1].get_weights())
-    model.add(Dense(2000, activation=activation))
-    if i != 10:
+    model.add(Dense(hidden_layer2, activation=activation))
+    if i != 9:
+        print "setear pesos 2"
         model.layers[-1].set_weights(AE2.layers[1].get_weights())
     model.add(Dense(n_classes, activation='softmax'))
     sgd = SGD(lr=0.1, decay=0.0)
@@ -260,10 +271,10 @@ for i, theta in enumerate(np.linspace(0.1, 1, 10)):
               metrics=['accuracy'])
 
     print "Entrenando..."
-    for n in range(1):
-        for k in range(1, i+2):
+    for n in range(2):
+        for k in range(0, i+1):
             print "Leyendo batch",k
-            Xtr, Ytr, Xval, Yval = load_single_NORB_train_val(".", k)
+            Xtr, Ytr, Xval, Yval = load_single_NORB_train_val(".", k+1)
             # Escalar datos y categorizar
             print "Escalando data..."
             Xtr_scaled = scale_data(Xtr)
@@ -274,11 +285,12 @@ for i, theta in enumerate(np.linspace(0.1, 1, 10)):
             Yval_class = np_utils.to_categorical(Yval.astype(int), n_classes)
             print "Data categorizada."
             model.fit(Xtr_scaled, Ytr_class, batch_size=10,
-                      validation_data=(Xval_scaled, Yval_class), nb_epoch=5)
+                      validation_data=(Xval_scaled, Yval_class), nb_epoch=1)
             print "Batch entrenado."
 
     a = model.evaluate(Xts_scaled, Yts_class, batch_size=10, verbose=1)
     print "Resultado:",a
     accuracies.append(a)
+    print accuracies
     del Xtr, Ytr, Xval, Yval
 print accuracies
