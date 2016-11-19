@@ -42,7 +42,7 @@ for devst in devsts:
     noisy_x_test = x_test+noise_mask
 
     input_img = Input(shape=(784,))
-    encoded = Dense(32, activation='sigmoid')(input_img)
+    encoded = Dense(32, activation='relu')(input_img)
     decoded = Dense(784, activation='sigmoid')(encoded)
     autoencoder = Model(input=input_img, output=decoded)
     encoder = Model(input=input_img, output=encoded)

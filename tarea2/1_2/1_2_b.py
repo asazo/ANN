@@ -35,14 +35,14 @@ i = 0
 for noise_level in noise_levels:
     i += 1
     noise_mask = binomial(n=1,p=noise_level,size=x_train.shape)
-    noisy_x_train = x_train+noise_mask
+    noisy_x_train = x_train*noise_mask
     noise_mask = binomial(n=1,p=noise_level,size=x_val.shape)
-    noisy_x_val = x_val+noise_mask
+    noisy_x_val = x_val*noise_mask
     noise_mask = binomial(n=1,p=noise_level,size=x_test.shape)
-    noisy_x_test = x_test+noise_mask
+    noisy_x_test = x_test*noise_mask
 
     input_img = Input(shape=(784,))
-    encoded = Dense(32, activation='sigmoid', input_dim=input_img.shape)(input_img)
+    encoded = Dense(32, activation='relu')(input_img)
     decoded = Dense(784, activation='sigmoid')(encoded)
     autoencoder = Model(input=input_img, output=decoded)
     encoder = Model(input=input_img, output=encoded)
