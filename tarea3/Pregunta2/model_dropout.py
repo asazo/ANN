@@ -3,7 +3,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 from matplotlib import pyplot
 from keras.preprocessing import sequence
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Dropout
 from keras.layers import LSTM
 from keras.layers.embeddings import Embedding
 
